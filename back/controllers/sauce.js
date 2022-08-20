@@ -1,5 +1,6 @@
-const sauce = require('../models/sauce');
 const Sauce = require('../models/sauce');
+
+const fs = require('fs')
 
 
 // AFFICHER TOUT
@@ -46,9 +47,15 @@ exports.modifySauce = (req, res, next) => {
 };
 // SUPPRIMER
 exports.deleteSauce= (req, res, next) => {
-    Sauce.findOne()
+    Sauce.findOne({ _id : req.params.id })
+    .then(res => {
+        let filePath = './images/' + res.imageUrl.slice(29)
+        fs.unlink(filePath, (err) => {
+            if (err) throw err;
+            console.log('path/file.txt was deleted')   
+        })
+    })
 
-    //
     Sauce.deleteOne({ _id : req.params.id })
     .then(() => res.status(200).json({message : 'objet supprime !'}))
     .catch(error => res.status(400).json({error}));
