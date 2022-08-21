@@ -1,6 +1,7 @@
+// importer le modele
 const Sauce = require('../models/sauce');
-
-const fs = require('fs')
+// pour pouvoir utiliser le programme FS 
+const fs = require('fs');
 
 
 // AFFICHER TOUT
@@ -12,6 +13,7 @@ exports.getAllSauces = (req, res, next) => {
 };
 // AFFICHER UNE SEULE
 exports.getOneSauce = (req, res, next) => {
+    // on applique une recherche ciblee
     Sauce.findOne({ _id : req.params.id})
     .then(sauce => res.status(200).json(sauce))
     .catch(error => res.status(404).json({error}));
@@ -34,6 +36,7 @@ exports.createSauce = (req, res, next) => {
         // generer l'url par grace aux proprietes
         imageUrl : `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
     });
+    // puis on enregistre l'objet
     sauce.save()
     .then(() => res.status(201).json({ message : 'objet enregistre !'}))
     .catch(error => res.status(400).json({error}));
@@ -41,24 +44,74 @@ exports.createSauce = (req, res, next) => {
 
 // MODIFIER
 exports.modifySauce = (req, res, next) => {
-    Sauce.updateOne({_id: req.params.id}, {...req.body, _id: req.params.id})
-            .then(() => res.status(200).json({message : 'objet modifie !'}))
-            .catch(error => res.status(400).json({error}));
-};
-// SUPPRIMER
-exports.deleteSauce= (req, res, next) => {
-    Sauce.findOne({ _id : req.params.id })
-    .then(res => {
-        let filePath = './images/' + res.imageUrl.slice(29)
-        fs.unlink(filePath, (err) => {
-            if (err) throw err;
-            console.log('path/file.txt was deleted')   
-        })
-    })
+    //------Verifier la presence ou absence de fichier
+    const sauceObject = req.file ? {
+        // On parse les informations de l'objet
+        ...JSON.parse(req.body.sauce),
+        // generer l'url par grace aux proprietes
+        imageUrl : `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
+    // si ce n'est pas le cas on recupere l'objet dans le corps de la requete
+    } : { ...req.body };
 
-    Sauce.deleteOne({ _id : req.params.id })
-    .then(() => res.status(200).json({message : 'objet supprime !'}))
-    .catch(error => res.status(400).json({error}));
+    // on prefera supprimer l'userID par mesure de securite
+    delete sauceObject._userId;
+
+    //verifier l'identite de l'utilisateur
+    Sauce.findOne({ _id : req.params.id })
+    // recuperer l'objet
+    .then((sauce) => {
+        // si l'utilisateur n'est pas l'auteur
+        if (sauce.userId != req.auth.userId) {
+            // on renvoit une erreur d'authentification
+            res.status(401).json({message : 'Non-autoirise'})
+        // si il s'agit de l'auteur
+        } else {
+            // si il a une nouvelle image, on supprime l'ancienne
+            if (req.file) {
+                // recuperer le nom du fichier via l'url enregistree
+                const filename = sauce.imageUrl.split('/images/')[1];
+                // suppression du fichier image
+                fs.unlink(`images/${filename}`, (err) => {
+                    // gestion des erreurs
+                    if (err) { console.log("Echec lors de la suppression de l'ancienne photo : "+err)};
+                    console.log("le fichier de l'ancienne image a ete supprime")
+                })
+            }
+            // on met a jour l'objet
+            Sauce.updateOne({ _id : req.params.id }, {...sauceObject, _id : req.params.id })
+            .then(() => res.status(200).json({message : 'objet modifie !'}))
+            .catch(error => res.status(401).json({error}));
+        }
+    })
+};
+
+// SUPPRIMER
+exports.deleteSauce = (req, res, next) => {
+    // on commence par rechercher l'objet dans la bdd
+    Sauce.findOne({ _id : req.params.id })
+        // puis on verifie l'identite de l'utilisateur
+        .then(sauce => {
+            // si ce n'est pas l'auteur
+            if (sauce.userId != req.auth.userId) {
+                // on renvoit une erreur d'authentification
+                res.status(401).json({message : 'not authorized'})
+            // si c'est l'auteur
+            } else {
+                // recuperer le nom du fichier via l'url enregistree
+                const filename = sauce.imageUrl.split('/images/')[1];
+                // suppression du fichier image
+                fs.unlink(`images/${filename}`, (err) => {
+                    // gestion des erreurs
+                    if (err) { console.log("Echec lors de la suppression de la photo : "+err)};
+                    console.log("le fichier de l'ancienne image a ete supprime")
+                    // suppression de la bdd
+                    Sauce.deleteOne({ _id : req.params.id })
+                    .then(() => res.status(200).json({message : 'objet supprime !'}))
+                    .catch(error => res.status(401).json({error}))
+                })
+            }
+        })
+        .catch(error => res.status(500).json({error})); 
 };
 
 
