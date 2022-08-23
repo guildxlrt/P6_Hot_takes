@@ -6,6 +6,7 @@ const path = require('path');
 require('dotenv').config()
 
 
+
 // importer user
 const userRoutes = require('./routes/user');
 // importer user
@@ -15,6 +16,11 @@ const sauceRoutes = require('./routes/sauce');
 const app = express();
 // json middleware
 app.use(express.json());
+
+// enable CORS
+const cors = require('cors');
+app.use(cors());
+
 
 // importer mongoose
 const mongoose = require('mongoose');

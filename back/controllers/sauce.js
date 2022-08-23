@@ -56,9 +56,8 @@ exports.modifySauce = (req, res, next) => {
     // on prefera supprimer l'userID par mesure de securite
     delete sauceObject._userId;
 
-    //verifier l'identite de l'utilisateur
+    // Recuperer l'objet
     Sauce.findOne({ _id : req.params.id })
-    // recuperer l'objet
     .then((sauce) => {
         // si l'utilisateur n'est pas l'auteur
         if (sauce.userId != req.auth.userId) {
@@ -73,8 +72,11 @@ exports.modifySauce = (req, res, next) => {
                 // suppression du fichier image
                 fs.unlink(`images/${filename}`, (err) => {
                     // gestion des erreurs
-                    if (err) { console.log("Echec lors de la suppression de l'ancienne photo : "+err)};
-                    console.log("le fichier de l'ancienne image a ete supprime")
+                    if (err) {
+                        console.log("Echec lors de la suppression de l'ancienne image : "+err)
+                    } else {
+                        console.log("le fichier de l'ancienne image a ete supprime")
+                    }
                 })
             }
             // on met a jour l'objet
@@ -102,8 +104,11 @@ exports.deleteSauce = (req, res, next) => {
                 // suppression du fichier image
                 fs.unlink(`images/${filename}`, (err) => {
                     // gestion des erreurs
-                    if (err) { console.log("Echec lors de la suppression de la photo : "+err)};
-                    console.log("le fichier de l'ancienne image a ete supprime")
+                    if (err) {
+                        console.log("Echec lors de la suppression de l'image : "+err)
+                    } else {
+                        console.log("le fichier de l'ancienne image a ete supprime")
+                    }
                     // suppression de la bdd
                     Sauce.deleteOne({ _id : req.params.id })
                     .then(() => res.status(200).json({message : 'objet supprime !'}))
@@ -117,5 +122,70 @@ exports.deleteSauce = (req, res, next) => {
 
 // LIKER
 exports.likeSauce = (req, res, next) => {
-    
+    // On cherche dans l'objet
+    Sauce.findOne({ _id : req.params.id })
+    .then(async sauce => {
+        // Pour faciliter la recher de l'utilisateur dans les tableaux
+        const findLike = sauce.usersLiked.includes(req.body.userId);
+        const findDislike = sauce.usersDisliked.includes(req.body.userId);
+
+        //-------Gestion des avis
+        switch (req.body.like) {
+            //---LIKE
+            case 1 :
+                // on ajoute le like
+                await Sauce.findByIdAndUpdate(
+                    req.params.id,
+                    { 
+                        likes : sauce.likes += 1,
+                        $addToSet : {usersLiked : req.body.userId}
+                    }
+                )
+                break;
+            //---DISLIKE
+            case -1 :
+                // on ajoute le dislike
+                await Sauce.findByIdAndUpdate(
+                    req.params.id,
+                    { 
+                        dislikes : sauce.dislikes += 1,
+                        $addToSet : {usersDisliked : req.body.userId}
+                    }
+                )
+                break;
+            //---ANNULATION
+            case 0 :
+                // LIKE
+                if (findLike) {
+                    // on retire le like
+                    await Sauce.findByIdAndUpdate(
+                        req.params.id,
+                        { 
+                            likes : sauce.likes -= 1,
+                            $pull : {usersLiked : req.body.userId}
+                        }
+                    )
+                    console.log('like retire')
+                }
+                // DISLIKE
+                else if (findDislike) {
+                    // on retire le dislike
+                    await Sauce.findByIdAndUpdate(
+                        req.params.id,
+                        { 
+                            dislikes : sauce.dislikes -= 1,
+                            $pull : {usersDisliked : req.body.userId}
+                        }
+                    )
+                }
+                else {
+                    console.log('erreur de traitement')
+                }
+                break;
+            default :
+                console.log('erreur de traitement')
+        }  
+    })
+    .then(() => res.status(201).json({ message : "Like/dislike a bien ete ajoute/retire"}))
+    .catch(error => res.status(500).json({error}));
 };
