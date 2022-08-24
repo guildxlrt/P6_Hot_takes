@@ -125,7 +125,7 @@ exports.likeSauce = (req, res, next) => {
     // On cherche dans l'objet
     Sauce.findOne({ _id : req.params.id })
     .then(async sauce => {
-        // Pour faciliter la recher de l'utilisateur dans les tableaux
+        // recuperation des utilisateurs qui ont like/dislike la sauce cible
         const findLike = sauce.usersLiked.includes(req.body.userId);
         const findDislike = sauce.usersDisliked.includes(req.body.userId);
 
@@ -133,9 +133,11 @@ exports.likeSauce = (req, res, next) => {
         switch (req.body.like) {
             //---LIKE
             case 1 :
-                // on ajoute le like
+                // on ajoute le like dans la bdd
                 await Sauce.findByIdAndUpdate(
+                    // id de l'objet sauce
                     req.params.id,
+                    // tableaux des likes
                     { 
                         likes : sauce.likes += 1,
                         $addToSet : {usersLiked : req.body.userId}
@@ -144,7 +146,7 @@ exports.likeSauce = (req, res, next) => {
                 break;
             //---DISLIKE
             case -1 :
-                // on ajoute le dislike
+                // on ajoute le dislike dans la bdd
                 await Sauce.findByIdAndUpdate(
                     req.params.id,
                     { 
@@ -160,6 +162,7 @@ exports.likeSauce = (req, res, next) => {
                     // on retire le like
                     await Sauce.findByIdAndUpdate(
                         req.params.id,
+                        // retirer des tableaux de likes
                         { 
                             likes : sauce.likes -= 1,
                             $pull : {usersLiked : req.body.userId}

@@ -11,6 +11,9 @@ const userSchema = mongoose.Schema({
 });
 
 // controller l'unicite
-userSchema.plugin(uniqueValidator);
+userSchema.plugin(uniqueValidator, {
+  message: "Erreur, l'adresse {PATH} doit etre unique."
+});
+
 
 module.exports = mongoose.model('User', userSchema);
