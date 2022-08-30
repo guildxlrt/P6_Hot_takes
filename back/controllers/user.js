@@ -28,7 +28,7 @@ exports.signup = (req, res, next) => {
         .is().not().oneOf(['Passw0rd', 'Password123']); // Blacklist these values
 
         //--------Verification : Requete Valide
-        if (emailValidator.test(req.body.email) && pwValSchema.validate(req.body.password)) {
+        if ((emailValidator.test(req.body.email)) && (pwValSchema.validate(req.body.password))) {
             //---hasher le mdp avec bcrypt
             bcrypt.hash(req.body.password, 10)
             .then(hash => {
@@ -40,24 +40,30 @@ exports.signup = (req, res, next) => {
                 // on sauve la reponse dans la base de donnee
                 user.save()
                 // message de confirmation
-                .then(() => res.status(201).json({
-                    message : 'utilisateur cree !'
-                }))
+                .then(() => res.status(201).json({ message : 'utilisateur cree !' }))
                 // message d'erreurs : l'email n'est pas unique
-                .catch((error) => { res.status(400).json({ message : error.message.split('User validation failed: email: ')[1] }) });
+                .catch((error) => {
+                    console.log(error.message.split('User validation failed: email: ')[1]);
+                    res.status(400).json({ message : error.message.split('User validation failed: email: ')[1] }) });
             })
             .catch(error => res.status(500).json({error}));
         }
         
         //--------Verification : Requete Non Valide
-        // Mot De Passe
-        else if (!pwValSchema.validate(req.body.password)) {
-            // message d'erreur
-            return res.status(400).json({ message : "le mot de passe n'est pas assez fort : il doit contenir au minimum 2 chiffres, 2 minuscules et 2 majuscules; il doit etre d'une longueur minimum de 8 caracteres" })
         // Email
-        } else if (!emailValidator.test(req.body.email)) {
+        else if ((emailValidator.test(req.body.email)) === false && (pwValSchema.validate(req.body.password)) === true) {
             // message d'erreur
             return res.status(400).json({ message : "l'email doit etre au format email : jack.nicholson@laposte.fr, sasha93.dupont@yahoo.fr, kanap-service_client@kanap.co.fr ..." })
+        }
+        // Mot De Passe
+        else if ((emailValidator.test(req.body.email)) === true && (pwValSchema.validate(req.body.password)) === false) {
+            // message d'erreur
+            return res.status(400).json({ message : "le mot de passe n'est pas assez fort : il doit contenir au minimum 2 chiffres, 2 minuscules et 2 majuscules; il doit etre d'une longueur minimum de 8 caracteres" })
+        }
+        // les deux sont invalides 
+        else if ((emailValidator.test(req.body.email)) === false && (pwValSchema.validate(req.body.password)) === false) {
+            // message d'erreur
+            return res.status(400).json({ message : "informations incorrectes" })
         }
     })();
 };
