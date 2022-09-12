@@ -1,7 +1,7 @@
 // importer le modele
 const Sauce = require('../models/sauce');
 // pour pouvoir utiliser le programme FS 
-const fs = require('fs');
+const fs = require('fs')
 
 
 // AFFICHER TOUT
@@ -46,7 +46,6 @@ exports.createSauce = (req, res, next) => {
 exports.modifySauce = (req, res, next) => {
     //------Verifier la presence ou absence de fichier
     const sauceObject = req.file ? {
-        // On parse les informations de l'objet
         ...JSON.parse(req.body.sauce),
         // generer l'url par grace aux proprietes
         imageUrl : `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
@@ -89,13 +88,11 @@ exports.modifySauce = (req, res, next) => {
 
 // SUPPRIMER
 exports.deleteSauce = (req, res, next) => {
-    // on commence par rechercher l'objet dans la bdd
     Sauce.findOne({ _id : req.params.id })
-        // puis on verifie l'identite de l'utilisateur
+        // Verification de l'identite de l'utilisateur
         .then(sauce => {
             // si ce n'est pas l'auteur
             if (sauce.userId != req.auth.userId) {
-                // on renvoit une erreur d'authentification
                 res.status(401).json({message : 'not authorized'})
             // si c'est l'auteur
             } else {
@@ -125,70 +122,84 @@ exports.likeSauce = (req, res, next) => {
     // On cherche dans l'objet
     Sauce.findOne({ _id : req.params.id })
     .then(async sauce => {
-        // recuperation des utilisateurs qui ont like/dislike la sauce cible
+        // recuperation des utilisateurs dans la sauce
         const findLike = sauce.usersLiked.includes(req.body.userId);
         const findDislike = sauce.usersDisliked.includes(req.body.userId);
 
-        //-------Gestion des avis
-        switch (req.body.like) {
-            //---LIKE
-            case 1 :
-                // on ajoute le like dans la bdd
-                await Sauce.findByIdAndUpdate(
-                    // id de l'objet sauce
-                    req.params.id,
-                    // tableaux des likes
-                    { 
-                        likes : sauce.likes += 1,
-                        $addToSet : {usersLiked : req.body.userId}
+        // identification de l'utilisateur
+        // en cas d'echec
+        if (req.body.userId != req.auth.userId) {
+            console.log('Action non authorisee')
+        }
+        // en cas de reussite
+        else {
+            //-------Gestion des avis
+            switch (req.body.like) {
+                //---LIKE
+                case 1 :
+                    if (!findLike && !findDislike) {
+                        // on ajoute le like dans la bdd
+                        await Sauce.findByIdAndUpdate(
+                            req.params.id,
+                            { 
+                                likes : sauce.likes += 1,
+                                $addToSet : {usersLiked : req.body.userId}
+                            }
+                        )
                     }
-                )
-                break;
-            //---DISLIKE
-            case -1 :
-                // on ajoute le dislike dans la bdd
-                await Sauce.findByIdAndUpdate(
-                    req.params.id,
-                    { 
-                        dislikes : sauce.dislikes += 1,
-                        $addToSet : {usersDisliked : req.body.userId}
+                    else {
+                        console.log("il est interdit de liker/disliker plus d'une fois")
+                    };
+                    break;
+                //---DISLIKE
+                case -1 :
+                    if (!findDislike && !findLike) {
+                        // on ajoute le dislike dans la bdd
+                        await Sauce.findByIdAndUpdate(
+                            req.params.id,
+                            { 
+                                dislikes : sauce.dislikes += 1,
+                                $addToSet : {usersDisliked : req.body.userId}
+                            }
+                        )
                     }
-                )
-                break;
-            //---ANNULATION
-            case 0 :
-                // LIKE
-                if (findLike) {
-                    // on retire le like
-                    await Sauce.findByIdAndUpdate(
-                        req.params.id,
-                        // retirer des tableaux de likes
-                        { 
-                            likes : sauce.likes -= 1,
-                            $pull : {usersLiked : req.body.userId}
-                        }
-                    )
-                    console.log('like retire')
-                }
-                // DISLIKE
-                else if (findDislike) {
-                    // on retire le dislike
-                    await Sauce.findByIdAndUpdate(
-                        req.params.id,
-                        { 
-                            dislikes : sauce.dislikes -= 1,
-                            $pull : {usersDisliked : req.body.userId}
-                        }
-                    )
-                }
-                else {
-                    console.log('erreur de traitement')
-                }
-                break;
-            default :
-                console.log('erreur de traitement')
-        }  
+                    else {
+                        console.log("il est interdit de disliker/liker plus d'une fois")
+                    };
+                    break;
+                //---ANNULATION
+                case 0 :
+                    // LIKE
+                    if (findLike) {
+                        // on retire le like
+                        await Sauce.findByIdAndUpdate(
+                            req.params.id,
+                            { 
+                                likes : sauce.likes -= 1,
+                                $pull : {usersLiked : req.body.userId}
+                            }
+                        )
+                    }
+                    // DISLIKE
+                    else if (findDislike) {
+                        // on retire le dislike
+                        await Sauce.findByIdAndUpdate(
+                            req.params.id,
+                            { 
+                                dislikes : sauce.dislikes -= 1,
+                                $pull : {usersDisliked : req.body.userId}
+                            }
+                        )
+                    }
+                    else {
+                        console.log("Impossible d'annuler le like/dislike")
+                    }
+                    break;
+                default :
+                    console.log("Mauvaise Requete")
+            }
+        }
     })
-    .then(() => res.status(201).json({ message : "Like/dislike a bien ete ajoute/retire"}))
+    .then(() => res.status(201).json({ message : "OK"}))
     .catch(error => res.status(500).json({error}));
 };
