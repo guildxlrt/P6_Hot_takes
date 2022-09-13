@@ -126,13 +126,9 @@ exports.likeSauce = (req, res, next) => {
         const findLike = sauce.usersLiked.includes(req.body.userId);
         const findDislike = sauce.usersDisliked.includes(req.body.userId);
 
-        // identification de l'utilisateur
-        // en cas d'echec
-        if (req.body.userId != req.auth.userId) {
-            console.log('Action non authorisee')
-        }
+        //---Identification de l'utilisateur
         // en cas de reussite
-        else {
+        if (req.body.userId === req.auth.userId) {
             //-------Gestion des avis
             switch (req.body.like) {
                 //---LIKE
@@ -148,7 +144,7 @@ exports.likeSauce = (req, res, next) => {
                         )
                     }
                     else {
-                        console.log("il est interdit de liker/disliker plus d'une fois")
+                        console.log("il est interdit de liker/disliker plus d'une fois ou de l'effectuer en parallele")
                     };
                     break;
                 //---DISLIKE
@@ -164,7 +160,7 @@ exports.likeSauce = (req, res, next) => {
                         )
                     }
                     else {
-                        console.log("il est interdit de disliker/liker plus d'une fois")
+                        console.log("il est interdit de disliker/liker plus d'une fois ou de l'effectuer en parallele")
                     };
                     break;
                 //---ANNULATION
@@ -196,8 +192,12 @@ exports.likeSauce = (req, res, next) => {
                     }
                     break;
                 default :
-                    console.log("Mauvaise Requete")
+                    console.log("Erreur Requete")
             }
+        }
+        // en cas d'echec
+        else {
+            console.log('Acces Non Authorise')
         }
     })
     .then(() => res.status(201).json({ message : "OK"}))
